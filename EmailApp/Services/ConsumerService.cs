@@ -1,38 +1,64 @@
 ﻿using Confluent.Kafka;
 using EmailApp.Model;
+using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Text.Json;
 using static Confluent.Kafka.ConfigPropertyNames;
 
 namespace EmailApp.Services
 {
-    public class ConsumerService : BackgroundService
+    public class ApacheKafkaConsumerService : BackgroundService
     {
+        private readonly string topic = "topic-mail";
+        private readonly string groupId = "test_group";
+        private readonly string bootstrapServers = "localhost:9092";
+
+     
+   
+
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
             var config = new ConsumerConfig
             {
-                GroupId = "gid-consumers",
-                BootstrapServers = "localhost:9092"
+                GroupId = groupId,
+                BootstrapServers = bootstrapServers,
+                AutoOffsetReset = AutoOffsetReset.Earliest
             };
 
-            using (var consumer = new ConsumerBuilder<Null, string>(config).Build())
+            try
             {
-                consumer.Subscribe("email");
-                while (true)
+                using (var consumerBuilder = new ConsumerBuilder
+                <Ignore, string>(config).Build())
                 {
-                    var email = consumer.Consume();
+                    consumerBuilder.Subscribe(topic);
+                    var cancelToken = new CancellationTokenSource();
 
-                    Console.WriteLine($"Deneme: {email.Message.Value}");
-                    InfoEmail infoEmail = JsonSerializer.Deserialize<InfoEmail>(email.Message.Value);
-                    Console.WriteLine($"Email Title: {infoEmail.Title} , Email Receiver: {infoEmail.ReceiverMail}");
-
+                    try
+                    {
+                        while (true)
+                        {
+                            var consumer = consumerBuilder.Consume(cancelToken.Token);
+                            var emailInfo = System.Text.Json.JsonSerializer.Deserialize
+                                <InfoEmail>(consumer.Message.Value);
+                            Console.WriteLine($"Email Title: {emailInfo.Title}");
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        consumerBuilder.Close();
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex.Message);
+            }
+
             return Task.CompletedTask;
-
-            //throw new NotImplementedException();
         }
-
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
     }
 }
