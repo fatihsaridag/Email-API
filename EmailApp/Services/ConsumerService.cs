@@ -40,7 +40,7 @@ namespace EmailApp.Services
                             var consumer = consumerBuilder.Consume(cancelToken.Token);
                             var emailInfo = System.Text.Json.JsonSerializer.Deserialize
                                 <InfoEmail>(consumer.Message.Value);
-                            Console.WriteLine($"Email Title: {emailInfo.Title}");
+                            Console.WriteLine($"Email Receiver: {emailInfo.ReceiverMail} , Email Title: {emailInfo.Title} , Email Content : {emailInfo.Contents}  ");
                         }
                     }
                     catch (OperationCanceledException)
